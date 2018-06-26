@@ -29,7 +29,7 @@ contract RockPaperScissors {
     return false;
   }
 
-  uint gameIndex = 0;
+  uint gameIndex = 1;
 
   struct Game {
     address player1;
@@ -49,8 +49,9 @@ contract RockPaperScissors {
 
   function createGame(bytes32 player1Proof) public payable returns (uint){
 
-    gameIndex = gameIndex+1;
     uint gameId = gameIndex;
+    gameIndex = gameIndex + 1;
+    assert(gameIndex > gameId);
     Game storage g = games[gameId];
     g.gameId = gameId;
     g.player1 = msg.sender;
@@ -63,11 +64,11 @@ contract RockPaperScissors {
   function playGame(uint gameId,bytes32 player2Proof) public payable {
 
     Game storage g = games[gameId];
-    assert(g.player1 != 0);
-    assert(g.amount == msg.value);
-    assert(g.player2Proof == 0);
-    assert(player2Proof != 0);
-    assert(!g.refunded);
+    require(g.player1 != 0);
+    require(g.amount == msg.value);
+    require(g.player2Proof == 0);
+    require(player2Proof != 0);
+    require(!g.refunded);
     g.player2 = msg.sender;
     g.player2Proof = player2Proof;
     emit GamePlayed(gameId,g.amount,g.player1,g.player2);
@@ -84,8 +85,8 @@ contract RockPaperScissors {
   function reveal(uint gameId,uint choice,string playerSecret) public {
 
     Game storage g = games[gameId];
-    assert(g.player1 != 0);
-    assert(g.player2Proof != 0);
+    require(g.player1 != 0);
+    require(g.player2Proof != 0);
 
     if(g.player1 == msg.sender){
       g.player1Choice = confirmChoiceOrFail(g.player1Proof,choice,playerSecret);
@@ -97,9 +98,9 @@ contract RockPaperScissors {
 
     if(g.player1Choice != 0 && g.player2Choice!=0){
       if(firstWins(g.player1Choice,g.player2Choice)){
-        g.amountToPayToPlayer1 = g.amount * 2;
+        g.amountToPayToPlayer1 = twice(g.amount);
       } else if(firstWins(g.player2Choice,g.player1Choice)){
-        g.amountToPayToPlayer2 = g.amount * 2;
+        g.amountToPayToPlayer2 = twice(g.amount);
       } else {
         g.amountToPayToPlayer1 = g.amount;
         g.amountToPayToPlayer2 = g.amount;
@@ -110,6 +111,11 @@ contract RockPaperScissors {
     emit PlayerRevealed(gameId,msg.sender,choice);
   }
 
+  function twice(uint amount) internal pure returns (uint) {
+    uint twiceVal = amount * 2;
+    assert(twiceVal > amount);
+    return twiceVal;
+  }
   function requestFunds(uint gameId) public {
 
     Game storage g = games[gameId];
@@ -132,7 +138,7 @@ contract RockPaperScissors {
 
       g.refunded = true;
       msg.sender.transfer(g.amount);
-      //emit FundsWithdrawn(gameId,msg.sender,g.amount);
+      emit FundsWithdrawn(gameId,msg.sender,g.amount);
 
     } else {
       revert();
@@ -142,10 +148,10 @@ contract RockPaperScissors {
   function requestCancel(uint gameId) public {
 
     Game storage g = games[gameId];
-    assert(g.player1 == msg.sender);
-    assert(g.player2Proof == 0);
+    require(g.player1 == msg.sender);
+    require(g.player2Proof == 0);
     g.refundAllowedAt = block.number + 1;
-    //emit CancelRequested(gameId,g.refundAllowedAt);
+    emit CancelRequested(gameId,g.refundAllowedAt);
 
   }
 
