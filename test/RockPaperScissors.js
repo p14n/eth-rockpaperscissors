@@ -104,7 +104,8 @@ contract('RockPaperScissors', function ([alice,bob,carol]) {
             total = total.plus(cost);
         }
         return total;
-    }
+   }
+
 
     const fromLog = (tx,event,name) => {
         for (var i = 0; i < tx.logs.length; i++) {

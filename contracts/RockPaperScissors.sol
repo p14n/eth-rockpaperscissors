@@ -1,40 +1,35 @@
-pragma solidity ^0.4.17;
+pragma solidity ^0.4.21;
 
 contract RockPaperScissors {
 
-  function ROCK() public pure returns (uint) {
-    return 1;
-  }
-  function PAPER() public pure returns (uint) {
-    return 2;
-  }
-  function SCISSORS() public pure returns (uint) {
-    return 3;
-  }
+  uint public constant ROCK = 1;
+  uint public constant PAPER = 2;
+  uint public constant SCISSORS = 3;
 
-  event GameCreated(uint gameId,uint amount, address player1);
-  event GamePlayed(uint gameId,uint amount, address player1, address player2);
-  event PlayerRevealed(uint gameId,address player, uint choice);
-  event FundsWithdrawn(uint gameId,address player, uint amount);
-  event CancelRequested(uint gameId,uint fromBlock);
+  event GameCreated(uint indexed gameId,uint amount, address indexed player1);
+  event GamePlayed(uint indexed gameId,uint amount, address indexed player1, address indexed player2);
+  event PlayerRevealed(uint indexed gameId,address indexed player, uint choice);
+  event FundsWithdrawn(uint indexed gameId,address indexed player, uint amount);
+  event CancelRequested(uint indexed gameId,uint fromBlock);
 
   function firstWins(uint first,uint second) public pure returns (bool) {
-    if( first == ROCK() && second == SCISSORS()) {
+    require(second>=ROCK);
+    require(second<=SCISSORS);
+    if( first == ROCK && second == SCISSORS) {
       return true;
-    } else if( first == SCISSORS() && second == PAPER()) {
+    } else if( first == SCISSORS && second == PAPER){
       return true;
-    } else if( first == PAPER() && second == ROCK()) {
+    } else if( first == PAPER && second == ROCK) {
       return true;
     }
     return false;
   }
 
-  uint gameIndex = 1;
+  uint public gameIndex = 1;
 
   struct Game {
     address player1;
     address player2;
-    uint gameId;
     bytes32 player1Proof;
     bytes32 player2Proof;
     uint player1Choice;
@@ -45,15 +40,16 @@ contract RockPaperScissors {
     uint refundAllowedAt;
     bool refunded;
   }
-  mapping (uint => Game) games;
+  mapping (uint => Game) public games;
 
   function createGame(bytes32 player1Proof) public payable returns (uint){
 
+    require(msg.sender!=1);
+    require(player1Proof != 0);
     uint gameId = gameIndex;
     gameIndex = gameIndex + 1;
     assert(gameIndex > gameId);
     Game storage g = games[gameId];
-    g.gameId = gameId;
     g.player1 = msg.sender;
     g.player1Proof = player1Proof;
     g.amount = msg.value;
@@ -68,7 +64,7 @@ contract RockPaperScissors {
     require(g.amount == msg.value);
     require(g.player2Proof == 0);
     require(player2Proof != 0);
-    require(!g.refunded);
+    require(g.refundAllowedAt==0);
     g.player2 = msg.sender;
     g.player2Proof = player2Proof;
     emit GamePlayed(gameId,g.amount,g.player1,g.player2);
@@ -85,7 +81,6 @@ contract RockPaperScissors {
   function reveal(uint gameId,uint choice,string playerSecret) public {
 
     Game storage g = games[gameId];
-    require(g.player1 != 0);
     require(g.player2Proof != 0);
 
     if(g.player1 == msg.sender){
@@ -111,10 +106,9 @@ contract RockPaperScissors {
     emit PlayerRevealed(gameId,msg.sender,choice);
   }
 
-  function twice(uint amount) internal pure returns (uint) {
-    uint twiceVal = amount * 2;
+  function twice(uint amount) internal pure returns (uint twiceVal) {
+    twiceVal = amount * 2;
     assert(twiceVal > amount);
-    return twiceVal;
   }
   function requestFunds(uint gameId) public {
 
@@ -124,8 +118,8 @@ contract RockPaperScissors {
 
       toPay = g.amountToPayToPlayer1;
       g.amountToPayToPlayer1 = 0;
-      msg.sender.transfer(toPay);
       emit FundsWithdrawn(gameId,msg.sender,toPay);
+      msg.sender.transfer(toPay);
 
     } else if(g.player2 == msg.sender && g.amountToPayToPlayer2 > 0){
 
