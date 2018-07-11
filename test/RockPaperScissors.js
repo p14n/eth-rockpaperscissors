@@ -94,6 +94,19 @@ contract('RockPaperScissors', function ([alice,bob,carol]) {
 
     })
 
+    it('should prevent player 1 refunding after reveal', async () => {
+
+        //const balance = await web3.eth.getBalance(carol);
+        const proof1 = await utils.soliditySha3(rockVal,"pwd1");
+        const proof2 = await utils.soliditySha3(scissorsVal,"pwd2");
+
+        const tx = await rps.createGame(proof1,{ from:bob,value:gameAmount});
+        const gameId = fromLog(tx,"GameCreated","gameId").toNumber()
+        await rps.requestCancel(gameId,{ from:bob });
+        await rps.playGame(gameId,proof2,{ from:carol,value:gameAmount});
+        await rps.reveal(gameId,scissorsVal,"pwd2",{from:carol});
+        await expectedExceptionPromise( () => rps.requestFunds(gameId,{from:bob}));
+    })
 
     const gasCost = async(...txs) => {
         let total = new BigNumber(0);

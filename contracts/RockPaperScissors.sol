@@ -6,10 +6,10 @@ contract RockPaperScissors {
   uint public constant PAPER = 2;
   uint public constant SCISSORS = 3;
 
-  event GameCreated(uint indexed gameId,uint amount, address indexed player1);
-  event GamePlayed(uint indexed gameId,uint amount, address indexed player1, address indexed player2);
-  event PlayerRevealed(uint indexed gameId,address indexed player, uint choice);
-  event FundsWithdrawn(uint indexed gameId,address indexed player, uint amount);
+  event GameCreated(uint indexed gameId, uint amount, address indexed player1);
+  event GamePlayed(uint indexed gameId, uint amount, address indexed player1, address indexed player2);
+  event PlayerRevealed(uint indexed gameId, address indexed player, uint choice);
+  event FundsWithdrawn(uint indexed gameId, address indexed player, uint amount);
   event CancelRequested(uint indexed gameId,uint fromBlock);
 
   function firstWins(uint first,uint second) public pure returns (bool) {
@@ -17,9 +17,9 @@ contract RockPaperScissors {
     require(second<=SCISSORS);
     if( first == ROCK && second == SCISSORS) {
       return true;
-    } else if( first == SCISSORS && second == PAPER){
+    } else if(first == SCISSORS && second == PAPER){
       return true;
-    } else if( first == PAPER && second == ROCK) {
+    } else if(first == PAPER && second == ROCK) {
       return true;
     }
     return false;
@@ -42,9 +42,9 @@ contract RockPaperScissors {
   }
   mapping (uint => Game) public games;
 
-  function createGame(bytes32 player1Proof) public payable returns (uint){
+  function createGame(bytes32 player1Proof) public payable returns (uint) {
 
-    require(msg.sender!=1);
+    require(msg.sender!=0);
     require(player1Proof != 0);
     uint gameId = gameIndex;
     gameIndex = gameIndex + 1;
@@ -64,7 +64,7 @@ contract RockPaperScissors {
     require(g.amount == msg.value);
     require(g.player2Proof == 0);
     require(player2Proof != 0);
-    require(g.refundAllowedAt==0);
+    require(!g.refunded);
     g.player2 = msg.sender;
     g.player2Proof = player2Proof;
     emit GamePlayed(gameId,g.amount,g.player1,g.player2);
@@ -128,7 +128,11 @@ contract RockPaperScissors {
       msg.sender.transfer(toPay);
       emit FundsWithdrawn(gameId,msg.sender,toPay);
 
-    } else if (g.player1 == msg.sender && g.refundAllowedAt > 0 && g.refundAllowedAt >= block.number){
+    } else if(!g.refunded &&
+              g.amountToPayToPlayer2 == 0 &&
+              g.player1 == msg.sender &&
+              g.refundAllowedAt > 0 &&
+              g.refundAllowedAt >= block.number) {
 
       g.refunded = true;
       msg.sender.transfer(g.amount);
